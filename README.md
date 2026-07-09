@@ -8,9 +8,7 @@ pinned above Normal ones (sorted in the database, not in the browser).
 
 - Framework: Next.js 14, **Pages Router** (`pages/`)
 - Database access: Prisma ORM
-- Database: any free hosted MySQL/Postgres — set up for **TiDB Cloud
-  Serverless** (MySQL-compatible) by default; Neon/Supabase (Postgres) also
-  work with a one-line schema change (see below)
+- Database: **Neon** (Postgres), free tier
 - Styling: Tailwind CSS
 - Hosting: Vercel (Hobby/free tier)
 
@@ -19,15 +17,15 @@ pinned above Normal ones (sorted in the database, not in the browser).
 ```
 pages/
   index.js                 # List page (SSR, Prisma orderBy: Urgent first)
-  notices/new.js            # Create form
-  notices/[id]/edit.js      # Edit form, pre-filled from Prisma
-  api/notices/index.js      # GET (list), POST (create)
-  api/notices/[id].js       # GET (one), PUT/PATCH (update), DELETE
+  notices/new.js             # Create form
+  notices/[id]/edit.js       # Edit form, pre-filled from Prisma
+  api/notices/index.js       # GET (list), POST (create)
+  api/notices/[id].js        # GET (one), PUT/PATCH (update), DELETE
 components/
   Layout.js, NoticeCard.js, NoticeForm.js, ConfirmDeleteButton.js
 lib/
-  prisma.js                 # Prisma client singleton
-  validateNotice.js         # Server-side validation (used by both API routes)
+  prisma.js                  # Prisma client singleton
+  validateNotice.js          # Server-side validation (used by both API routes)
 prisma/
   schema.prisma
 ```
@@ -40,31 +38,28 @@ prisma/
    npm install
    ```
 
-2. **Set up a free hosted database**
+2. **Set up a free hosted database (Neon)**
 
-   Recommended: [TiDB Cloud Serverless](https://tidbcloud.com) (MySQL-compatible, free, no credit card).
+   - Go to [neon.tech](https://neon.tech), sign up free (no credit card needed).
+   - Create a project, then copy the connection string it gives you
+     (starts with `postgresql://...` and includes `?sslmode=require`).
 
-   - Create a free cluster, then create a database (e.g. `noticeboard`).
-   - Get the connection string from the cluster's "Connect" panel.
-
-   Alternative: [Neon](https://neon.tech) or [Supabase](https://supabase.com) (Postgres, also free).
-   If you use Postgres instead of MySQL, open `prisma/schema.prisma` and change:
-
-   ```prisma
-   datasource db {
-     provider = "postgresql"   // was "mysql"
-     url      = env("DATABASE_URL")
-   }
-   ```
-
-   and change the `image` field's `@db.LongText` to `@db.Text`.
+   > Any Postgres-compatible free host (e.g. Supabase) or a MySQL-compatible
+   > one (e.g. TiDB Cloud) also works — see "Using a different database"
+   > below if you switch.
 
 3. **Configure environment variables**
 
-   Copy `.env.example` to `.env` and paste in your connection string:
+   Copy `.env.example` to `.env`:
 
    ```bash
    cp .env.example .env
+   ```
+
+   Then paste your connection string into it:
+
+   ```
+   DATABASE_URL="postgresql://<user>:<password>@<host>/<database>?sslmode=require"
    ```
 
 4. **Push the schema to your database**
@@ -86,10 +81,24 @@ prisma/
 1. Push this repo to a **public** GitHub repository.
 2. In Vercel, "Add New Project" → import the repo.
 3. Add the `DATABASE_URL` environment variable (same value as your `.env`)
-   in the Vercel project settings.
+   in the Vercel project settings before deploying.
 4. Deploy. Vercel runs `npm run build`, which runs `prisma generate` then
    `next build`. No further configuration is needed.
 5. Confirm the deployment is public (opens without logging in).
+
+## Using a different database
+
+This project ships with `prisma/schema.prisma` configured for Postgres
+(Neon). If you'd rather use a MySQL-compatible host like TiDB Cloud, change:
+
+```prisma
+datasource db {
+  provider = "mysql"   // was "postgresql"
+  url      = env("DATABASE_URL")
+}
+```
+
+and change the `image` field's `@db.Text` to `@db.LongText`.
 
 ## How the requirements are met
 
@@ -113,7 +122,7 @@ prisma/
   phones and up to three columns on desktop (Tailwind's `sm:`/`lg:`
   breakpoints), with a mobile-friendly header and forms.
 - **Persistence**: all data is read and written through Prisma against a
-  hosted database, so it survives refreshes and redeploys — no local
+  hosted Neon database, so it survives refreshes and redeploys — no local
   SQLite file is used.
 - **Images**: uploaded images are read client-side and sent as a base64
   data URL, then stored directly in the database (`image` column), so no
@@ -130,15 +139,24 @@ bar (by category and by keyword) on the list page.
 
 ## Where and how AI was used
 
-This project was built with Claude (Anthropic). AI was used to:
+This project was built with help from **Claude (Anthropic AI)**, which
+generated the initial codebase based on the assignment's requirements:
+the Next.js Pages Router structure, the Prisma schema, the CRUD API
+routes, the server-side validation helper, and the Tailwind-based UI
+(notice cards, the create/edit form, and the delete-confirmation dialog).
 
-- Scaffold the Next.js Pages Router structure, the Prisma schema, and the
-  CRUD API routes.
-- Write the shared server-side validation helper.
-- Generate the Tailwind-based UI (layout, notice cards, the create/edit
-  form, and the delete-confirmation dialog).
-- Write this README.
+I reviewed the generated code, then handled the rest of the project
+myself:
+- Set up the Neon Postgres database and adjusted `schema.prisma`
+  (provider and the `image` column type) for it.
+- Configured `.env` with my own `DATABASE_URL` and ran `npx prisma db push`
+  to create the schema.
+- Initialized git, committed the project, and pushed it to a public
+  GitHub repository.
+- Deployed the project to Vercel and configured the `DATABASE_URL`
+  environment variable there.
+- Manually tested create, edit, delete and the Urgent-first ordering on
+  the live deployment.
 
-All generated code was reviewed, and the build was verified locally
-(`next build`, type/lint checks) before committing. No AI-generated code
-was submitted without being read and understood first.
+No AI-generated code was submitted without being read and understood
+first.
