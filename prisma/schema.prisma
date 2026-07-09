@@ -1,0 +1,41 @@
+// Prisma schema for the Notice Board app.
+// Target DB: TiDB Cloud Serverless (MySQL-compatible), free tier.
+// If you'd rather use Neon or Supabase (Postgres), change `provider` below
+// to "postgresql" and remove the `@db.LongText` attribute on `image`
+// (use `@db.Text` there instead). See README.md for details.
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Category {
+  Exam
+  Event
+  General
+}
+
+enum Priority {
+  Normal
+  Urgent
+}
+
+model Notice {
+  id          Int      @id @default(autoincrement())
+  title       String   @db.VarChar(200)
+  body        String   @db.Text
+  category    Category @default(General)
+  priority    Priority @default(Normal)
+  publishDate DateTime
+  // Optional image, stored as a base64 data URL so no separate file
+  // storage service is required. LongText comfortably holds a few MB.
+  image       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([priority, publishDate])
+}
